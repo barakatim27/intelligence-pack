@@ -1,0 +1,19 @@
+services:
+  - type: cron
+    name: intelligence-pack-daily-brief
+    runtime: python
+    plan: starter
+    region: singapore
+    autoDeployTrigger: commit
+    buildCommand: pip install -r requirements.txt
+    startCommand: python app.py
+    schedule: "0 3 * * *"
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.13.3
+      - key: SENDER_EMAIL
+        sync: false
+      - key: SENDER_PASSWORD
+        sync: false
+      - key: RECIPIENT_EMAIL
+        sync: false

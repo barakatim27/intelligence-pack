@@ -21,8 +21,4 @@ def run_daily_job():
     digest = build_digest(ranked)
 
     send_email_digest(digest)
-
-for source in [TECH_SOURCES, FINANCE_SOURCES, GEO_SOURCES]:
-    raw = collect_news(source)
-    print(source["category"], "=>", len(raw))
     
