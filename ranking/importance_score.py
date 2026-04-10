@@ -1,5 +1,3 @@
-from datetime import datetime
-
 KEYWORDS = {
     "tech": ["ai", "openai", "microsoft", "google", "startup"],
     "finance": ["fed", "inflation", "stocks", "earnings", "market"],
@@ -28,3 +26,16 @@ def rank_articles(articles: list[dict]) -> list[dict]:
         key=score_article,
         reverse=True
     )
+
+
+def rank_articles_by_category(articles: list[dict]) -> dict[str, list[dict]]:
+    ranked_by_category: dict[str, list[dict]] = {}
+
+    for category in KEYWORDS:
+        category_articles = [
+            article for article in articles
+            if article.get("category") == category
+        ]
+        ranked_by_category[category] = rank_articles(category_articles)
+
+    return ranked_by_category

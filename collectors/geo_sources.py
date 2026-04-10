@@ -2,6 +2,7 @@ GEO_SOURCES = {
     "category": "geo",
     "feeds": {
         "BBC World": "http://feeds.bbci.co.uk/news/world/rss.xml",
-        "Al Jazeera": "https://www.aljazeera.com/xml/rss/all.xml"
+        "Reuters World": "https://feeds.reuters.com/Reuters/worldNews",
+        "AP World": "https://feeds.apnews.com/apf-worldnews"
     }
 }
