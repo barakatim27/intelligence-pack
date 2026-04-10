@@ -1,12 +1,15 @@
 import smtplib
 from email.mime.text import MIMEText
-import env 
+import os
+from dotenv import load_dotenv 
 
+
+load_dotenv()
 
 def send_email_digest(content: str):
-    sender_email = env.get("SENDER_EMAIL")
-    sender_password = env.get("SENDER_PASSWORD")
-    recipient = env.get("RECIPIENT_EMAIL")
+    sender_email = os.getenv("SENDER_EMAIL")
+    sender_password = os.getenv("SENDER_PASSWORD")
+    recipient = os.getenv("RECIPIENT_EMAIL")
 
     msg = MIMEText(content)
     msg["Subject"] = "Daily News Intelligence Brief"
