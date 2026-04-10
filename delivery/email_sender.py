@@ -1,11 +1,12 @@
 import smtplib
 from email.mime.text import MIMEText
+import env 
 
 
 def send_email_digest(content: str):
-    sender_email = "YOUR_EMAIL@gmail.com"
-    sender_password = "YOUR_APP_PASSWORD"
-    recipient = "timothybaraka39@gmail.com"
+    sender_email = env.get("SENDER_EMAIL")
+    sender_password = env.get("SENDER_PASSWORD")
+    recipient = env.get("RECIPIENT_EMAIL")
 
     msg = MIMEText(content)
     msg["Subject"] = "Daily News Intelligence Brief"
