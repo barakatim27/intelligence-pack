@@ -1,7 +1,7 @@
 KEYWORDS = {
-    "tech": ["ai", "openai", "microsoft", "google", "startup"],
-    "finance": ["fed", "inflation", "stocks", "earnings", "market"],
-    "geo": ["war", "election", "trade", "sanctions", "oil"]
+    "tech": ["ai", "openai", "microsoft", "google", "startup","apple", "meta", "tesla", "nvidia", "semiconductor","dataannotation.tech"],
+    "finance": ["fed", "inflation", "stocks", "earnings", "market", "crypto", "bitcoin", "interest rates"],
+    "geo": ["war", "election", "trade", "sanctions", "oil","climate","tariffs","trump","iran"],
 }
 
 
