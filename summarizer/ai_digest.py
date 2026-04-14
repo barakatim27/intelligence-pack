@@ -1,5 +1,4 @@
-from collections import defaultdict
-from math import ceil
+﻿from collections import defaultdict
 from html import unescape
 import re
 
@@ -55,33 +54,118 @@ def _word_count(text: str) -> int:
     return len(text.split())
 
 
-def _article_blurb(article: dict, max_words: int) -> str:
-    summary = _strip_html(article.get("summary", ""))
-    if summary:
-        return _truncate_words(summary, max_words)
-
-    fallback = f"{article.get('title', '').strip()} ({article.get('source', 'Unknown')})"
-    return _truncate_words(fallback, max_words)
+def _sentence_split(text: str) -> list[str]:
+    if not text:
+        return []
+    return [part.strip() for part in re.split(r"(?<=[.!?])\s+", text) if part.strip()]
 
 
-def _estimate_digest_words(articles: list[dict], blurb_words: int) -> int:
-    total = 0
-    for article in articles:
-        title_words = _word_count(article.get("title", ""))
-        metadata_words = 8  # category + source + link labels
-        blurb = _article_blurb(article, blurb_words)
-        total += title_words + metadata_words + _word_count(blurb)
-    return total
+def _unique_in_order(items: list[str]) -> list[str]:
+    seen: set[str] = set()
+    ordered: list[str] = []
+    for item in items:
+        key = item.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        ordered.append(item)
+    return ordered
+
+
+def _category_angle(category: str) -> str:
+    if category == "tech":
+        return (
+            "In the technology landscape, this development points to changing product "
+            "strategy, platform competition, and how quickly teams are moving from "
+            "experiments to commercial deployment."
+        )
+    if category == "finance":
+        return (
+            "For markets and business decisions, this can influence investor sentiment, "
+            "risk assumptions, and near-term planning across companies and households."
+        )
+    if category == "geo":
+        return (
+            "From a geopolitical perspective, the update may affect diplomatic positioning, "
+            "policy choices, and the broader regional or global response."
+        )
+    return (
+        "This update is relevant because it can shape both short-term decisions and "
+        "long-term strategic direction for stakeholders."
+    )
+
+
+def _build_four_minute_summary(article: dict, max_words: int = 650) -> str:
+    cleaned_summary = _strip_html(article.get("summary", ""))
+    title = article.get("title", "Untitled Story").strip()
+    source = article.get("source", "Unknown")
+    category = article.get("category", "").lower()
+
+    raw_sentences = _sentence_split(cleaned_summary)
+    sentences = _unique_in_order(raw_sentences)
+
+    lead = sentences[0] if sentences else f"{title} is the key development highlighted in this bulletin."
+    details = sentences[1:6] if len(sentences) > 1 else []
+
+    if not details:
+        details = [
+            "Based on the available source excerpt, this story appears significant and worth monitoring.",
+            "The headline suggests an active shift that may influence decisions in the near term.",
+            "Additional reporting from the source link can provide deeper factual and historical context.",
+        ]
+
+    key_points = _unique_in_order([_truncate_words(item, 24) for item in details[:3]])
+    while len(key_points) < 3:
+        key_points.append("The situation is still developing and further details may follow.")
+
+    context_para = " ".join(details)
+    if _word_count(context_para) < 80:
+        context_para = (
+            f"{context_para} The source excerpt is short, so this brief focuses on the clearest verified signals "
+            "from the headline and summary while avoiding unsupported assumptions."
+        ).strip()
+
+    significance_para = (
+        f"{_category_angle(category)} In practical terms, readers should focus on who is directly affected, "
+        "what changed compared to the previous state, and what the source confirms versus what remains uncertain."
+    )
+
+    watch_items = _unique_in_order(
+        [
+            "Official statements, filings, or policy actions that confirm next steps.",
+            f"Follow-up reporting from {source} and other primary outlets for additional evidence.",
+            "Operational impacts over the next few days or weeks, especially any measurable outcomes.",
+        ]
+    )
+
+    body = (
+        "Here\'s a **4-minute read summary** of the article:\n\n"
+        "---\n\n"
+        f"# {title}\n\n"
+        f"{lead}\n\n"
+        "## Key Developments\n\n"
+        f"* {key_points[0]}\n"
+        f"* {key_points[1]}\n"
+        f"* {key_points[2]}\n\n"
+        "## What Happened\n\n"
+        f"{context_para}\n\n"
+        "## Why This Matters\n\n"
+        f"{significance_para}\n\n"
+        "## What To Watch Next\n\n"
+        f"* {watch_items[0]}\n"
+        f"* {watch_items[1]}\n"
+        f"* {watch_items[2]}\n\n"
+        "In short, this bulletin is most useful as a fast strategic snapshot; use the source link for full article depth."
+    )
+
+    return _truncate_words(body, max_words)
 
 
 def build_digest(
     articles: list[dict],
     per_category: int = 3,
     max_per_source: int = 1,
-    max_read_minutes: int = 4,
-    words_per_minute: int = 200,
 ) -> str:
-    max_digest_words = max(max_read_minutes * words_per_minute, 1)
     ranked_by_category = rank_articles_by_category(articles)
     source_counts: dict[str, int] = defaultdict(int)
     selected_articles: list[dict] = []
@@ -131,33 +215,15 @@ def build_digest(
         reverse=True
     )
 
-    # Keep each bulletin short enough to skim quickly.
-    blurb_words = 24
-
     digest = []
-    final_articles: list[dict] = []
-    running_word_count = 0
     for article in selected_articles:
-        projected = running_word_count + _estimate_digest_words([article], blurb_words)
-        if final_articles and projected > max_digest_words:
-            break
-        final_articles.append(article)
-        running_word_count = projected
-
-    if not final_articles and selected_articles:
-        final_articles = [selected_articles[0]]
-        running_word_count = _estimate_digest_words(final_articles, blurb_words)
-
-    estimated_minutes = max(1, ceil(running_word_count / max(words_per_minute, 1)))
-    digest.append(f"Estimated read time: ~{estimated_minutes} min ({running_word_count} words)\n")
-
-    for article in final_articles:
-        blurb = _article_blurb(article, max_words=blurb_words)
+        long_summary = _build_four_minute_summary(article)
         digest.append(
             f"- [{article['category'].upper()}] {article['title']}\n"
             f"  Source: {article['source']}\n"
-            f"  Summary: {blurb}\n"
             f"  Link: {article['link']}\n"
+            f"  Summary: {long_summary}\n"
         )
 
     return "\n".join(digest)
+
