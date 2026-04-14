@@ -1,5 +1,6 @@
 from collections import defaultdict
 from math import ceil
+from html import unescape
 import re
 
 from ranking.importance_score import rank_articles_by_category, score_article
@@ -40,7 +41,7 @@ def _strip_html(text: str) -> str:
         return ""
     without_tags = re.sub(r"<[^>]+>", " ", text)
     normalized_space = re.sub(r"\s+", " ", without_tags)
-    return normalized_space.strip()
+    return unescape(normalized_space).strip()
 
 
 def _truncate_words(text: str, max_words: int) -> str:
@@ -77,10 +78,10 @@ def build_digest(
     articles: list[dict],
     per_category: int = 3,
     max_per_source: int = 1,
-    min_read_minutes: int = 4,
+    max_read_minutes: int = 4,
     words_per_minute: int = 200,
 ) -> str:
-    target_words = max(min_read_minutes * words_per_minute, 1)
+    max_digest_words = max(max_read_minutes * words_per_minute, 1)
     ranked_by_category = rank_articles_by_category(articles)
     source_counts: dict[str, int] = defaultdict(int)
     selected_articles: list[dict] = []
@@ -124,46 +125,33 @@ def build_digest(
             if picked >= per_category:
                 break
 
-    all_ranked = sorted(articles, key=score_article, reverse=True)
-
-    # Relax constraints in stages until we hit the minimum reading target.
-    expansion_stages = [
-        {"enforce_source_cap": True, "enforce_dedupe": True, "source_cap": max_per_source},
-        {"enforce_source_cap": False, "enforce_dedupe": True, "source_cap": max_per_source},
-        {"enforce_source_cap": False, "enforce_dedupe": False, "source_cap": max_per_source},
-    ]
-
-    for stage in expansion_stages:
-        if _estimate_digest_words(selected_articles, blurb_words=45) >= target_words:
-            break
-        for article in all_ranked:
-            add_article(
-                article,
-                enforce_source_cap=stage["enforce_source_cap"],
-                enforce_dedupe=stage["enforce_dedupe"],
-                source_cap=stage["source_cap"],
-            )
-            if _estimate_digest_words(selected_articles, blurb_words=45) >= target_words:
-                break
-
     selected_articles = sorted(
         selected_articles,
         key=score_article,
         reverse=True
     )
 
-    blurb_words = 45
-    while blurb_words < 120 and _estimate_digest_words(selected_articles, blurb_words) < target_words:
-        blurb_words += 10
+    # Keep each bulletin short enough to skim quickly.
+    blurb_words = 24
 
     digest = []
-    estimated_words = _estimate_digest_words(selected_articles, blurb_words)
-    estimated_minutes = max(1, ceil(estimated_words / max(words_per_minute, 1)))
-    digest.append(
-        f"Estimated read time: ~{estimated_minutes} min ({estimated_words} words)\n"
-    )
-
+    final_articles: list[dict] = []
+    running_word_count = 0
     for article in selected_articles:
+        projected = running_word_count + _estimate_digest_words([article], blurb_words)
+        if final_articles and projected > max_digest_words:
+            break
+        final_articles.append(article)
+        running_word_count = projected
+
+    if not final_articles and selected_articles:
+        final_articles = [selected_articles[0]]
+        running_word_count = _estimate_digest_words(final_articles, blurb_words)
+
+    estimated_minutes = max(1, ceil(running_word_count / max(words_per_minute, 1)))
+    digest.append(f"Estimated read time: ~{estimated_minutes} min ({running_word_count} words)\n")
+
+    for article in final_articles:
         blurb = _article_blurb(article, max_words=blurb_words)
         digest.append(
             f"- [{article['category'].upper()}] {article['title']}\n"
