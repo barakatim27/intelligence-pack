@@ -139,8 +139,6 @@ def _build_four_minute_summary(article: dict, max_words: int = 650) -> str:
     )
 
     body = (
-        "Here\'s a **4-minute read summary** of the article:\n\n"
-        "---\n\n"
         f"# {title}\n\n"
         f"{lead}\n\n"
         "## Key Developments\n\n"
